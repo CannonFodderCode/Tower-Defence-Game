@@ -12,14 +12,14 @@ Tower info pannel when placing - cost (currently affordable?), damage, range, fi
 Upgrade pannel implimented
 for upgrade pannel: if mouse collide with self.rect: dragged = True if mouseX the other side and dragged swap sides. if mouse not down dragged=False
 new Towers index their info from the "~database~" (list)
+add smart wave calling
 
 Next Steps:
 Ballence Tower Upgrade prices and increaces. (maybe index (another) list)
 draw tower bases first, then turrets, then range to prevent overlaps
-FIX - when selected and hovered over, tower tange draws twice
 re-order blit sequence to ensure important stuff (lives, money, etc) doesnt get overlapped!
 make a display for gold, lives, hours spent debugging, waves, etc
-        gamestate screens - menu, play, PAUSE, tutorial, Upgrades, stats, etc
+        gamestate screens - menu, play, PAUSE, tutorial, Upgrades, stats, etc  -  in progress
 
 later: (unprioritised)
 Music?
@@ -33,7 +33,6 @@ buff items - tower amplifiers (maybe only 1 square instead of 2x2?)
 abilities to freeze enemies, buff towers in a zone, place blockades on tracks...
 launch config window before game (sepperate while loop) to allow user to choose a window size, then impliment a scale function for all rect objects
 
-add smart wave calling (if len(enemies)==0, if wave_spawn counter==wavestyle[1], or instantly (currently the only one used))
 '''
 # Instructions:
 ''' (big green button is start)
@@ -61,7 +60,7 @@ if True:  # Display setup
     info_font = pygame.font.Font(None, 40)
 
 lives=3  # currently low for testing - should be 20
-gold = 50
+gold = 500
 if True:  # Wave marking, and spawn distribution
     wave = 1
     waveHP = int(20 + wave + (1.5*((wave**1.5)+2))*log(wave+2))
@@ -110,15 +109,15 @@ def in_range(ob1, ob2):    # Checks if first inputs range covers the second obje
         return False
 
 mousedown = False
-def clicked(item): # only returns true when the mouse is released (used for things that shouldnt be pressed 120 times per second...)
+def clicked(item, mousebutton): # only returns true when the mouse is released (used for things that shouldnt be pressed 120 times per second...)
     global mousedown
-    if mousedown and not pygame.mouse.get_pressed()[0] and item.collidepoint(mouse):
+    if mousedown and not pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
         mousedown = False
         return True
-    if not pygame.mouse.get_pressed()[0] and item.collidepoint(mouse):
+    if not pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
         mousedown = False
         return False
-    elif pygame.mouse.get_pressed()[0] and item.collidepoint(mouse):
+    elif pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
         mousedown = True
 
 #   TOWER PLACEMENT AND UPGRADING
@@ -279,11 +278,11 @@ def select_tower(): # Allows the user to click on a tower to display an pannel w
                 update = False
             sell_button = pygame.Rect(0, 920, 80, 160)
             disp.blit(upgrade_pannel, (0,120))
-            if clicked(sell_button): # Tower sold
+            if clicked(sell_button,0): # Tower sold
                 sell(target)
                 target = None
             Upgrade_button = pygame.Rect(80, 920, 160, 160)
-            if clicked(Upgrade_button) and gold>=target.upgrade_cost:
+            if clicked(Upgrade_button,0) and gold>=target.upgrade_cost:
                 print(target.upgrade_cost, "upgrade cost")
                 gold -= target.upgrade_cost
                 update = True
@@ -303,11 +302,11 @@ def select_tower(): # Allows the user to click on a tower to display an pannel w
                 update = False
             sell_button = pygame.Rect(1840,920, 80, 160)
             disp.blit(upgrade_pannel, (scr_wi-400, 120))
-            if clicked(sell_button):
+            if clicked(sell_button,0):
                 sell(target)
                 target = None
             Upgrade_button = pygame.Rect(1680, 920, 160, 160)
-            if clicked(Upgrade_button) and gold>=target.upgrade_cost:
+            if clicked(Upgrade_button,0) and gold>=target.upgrade_cost:
                 gold -= target.upgrade_cost
                 update = True
                 target.upgrade()
@@ -327,6 +326,7 @@ def new_wave():  # increases wave number, and selects its wave type & calculates
     wave += 1
     wavestyle = (choice(((0, 10),(1, 15), (2, 25)))) #((dense, normal, or tightly grouped), total enemy count)
     waveHP = int(wave_HPmodifier[wavestyle[0]] * (20 + wave + int((1.5*((wave**1.5)+2))*log(wave+2)))) # provides a upward scaling that gets increasingly brutal, multiplied by HP modifier for wave type
+    print("new_wave was called")
 
 def wavespawn(): # spawns each enemy in the wave, according to the wave type, then calls new_wave() when done
     global wavecomplete
@@ -337,14 +337,73 @@ def wavespawn(): # spawns each enemy in the wave, according to the wave type, th
         count = wavestyle[1]
         wavecomplete = False
         print(f"count = {count} ... wave = {wave} ... waveHP = {waveHP}") # informs the user of enemy count & HP per wave
-    while count>0 and curtime-timer>= spawn_delay[wavestyle[0]]:  
+    while count > 0 and curtime-timer >= spawn_delay[wavestyle[0]]:  
         bob=enemy()
         enemies.add(bob)
-        count-=1
+        count -= 1
         timer=curtime
-    if count==0: # detects if there are any more enemies to spawn this wave
-        wavecomplete=True
-        new_wave()
+    #if count==0: # detects if there are any more enemies to spawn this wave
+        #print("c")
+        #new_wave()
+
+update_button = True
+button = pygame.Surface((100,100), pygame.SRCALPHA)
+def PauseButton(state):
+    global update_button
+    #button = pygame.Rect(10,10,100,100)
+    button_rect = button.get_rect(topleft=(10,10))
+    if clicked(button_rect, 0):
+        update_button = True
+        if state == 1:
+            state = 2
+        elif state == 2:
+            state = 1
+        print("BUTTON PRESSED")
+    if state == 1 and update_button:
+        button.fill((0,0,0,0))
+        pygame.draw.line(button, (255,255,100),(20,0), (20,100),40)
+        pygame.draw.line(button, (255,255,100),(80,0), (80,100),40)
+        update_button = False
+    if state == 2 and update_button:
+        button.fill((0,0,0,0))
+        pygame.draw.polygon(button, (255,255,100), [(0,0),(0,100),(100,50)],0)
+        Update_button = False
+    disp.blit(button, button_rect)
+    return state
+
+wave_list = ["auto wavesend", "when killed", "on click"]
+wavesend = 2
+wavesymbol = pygame.Surface((100,100), pygame.SRCALPHA)
+wavesymbol.fill((255,255,255))
+wavesymbol_button = wavesymbol.get_rect(topright = (scr_wi-10,10))
+def wavebutton():
+    global wavesend, count, wavecomplete
+    if wavesend == 0:
+        wavesymbol.fill((255,0,0))
+        if count == 0: # instant wave calls - no gap
+            #wavecomplete=True
+            new_wave()
+            print(wave_list[wavesend], "wave called!")
+            wavecomplete=True
+    elif wavesend == 1:
+        wavesymbol.fill((255,255,0))
+        if len(enemies) == 0 and count == 0: # all enemies dead
+            #wavecomplete=True
+            new_wave()
+            print(wave_list[wavesend], "wave called!")
+            wavecomplete=True
+    elif wavesend == 2:
+        wavesymbol.fill((255,255,255))
+        if clicked(wavesymbol_button, 0) and count == 0:  # READ ME - when wave button is set to white, LMB restarts the cycle, instead of RMB for some reason - find time to fix...
+            new_wave()
+            print(wave_list[wavesend], "wave called!")
+            wavecomplete=True
+    if clicked(wavesymbol_button, 2): # RMB to adjust wave calling (red = auto, yellow = when all killed, white = manual send)
+        wavesend = (wavesend+1) % 3
+        print(count)
+        print(wave_list[wavesend], "has been set")
+    disp.blit(wavesymbol, wavesymbol_button)
+
 
 #   CLASSES
 class enemy(pygame.sprite.Sprite):  # basic enemy. comes in groups, or tanky, or normal
@@ -466,10 +525,10 @@ class Tower(pygame.sprite.Sprite):  # standard Tower. basic, does the job. not e
             self.rangerect = self.rangeimage.get_rect(center=self.position)
             pygame.draw.circle(self.rangeimage, (255,255,255,40), (self.range,self.range), self.range)
             self.saved_range = self.range
-        disp.blit(self.rangeimage, self.rangerect)     
+        disp.blit(self.rangeimage, self.rangerect)
 
     def aim(self, target):
-        self.turret_angle = 90-degrees(angle_finder(self.baserect.center, target.rect.center)) #(pi/2)---
+        self.turret_angle = 90-degrees(angle_finder(self.baserect.center, target.rect.center))
         self.turretimage = pygame.transform.rotate(self.turret_orig_image, self.turret_angle)
         self.turretrect = self.turretimage.get_rect()
         self.turretrect.centerx = self.baserect.center[0]+40*cos(radians(self.turret_angle-90)) # no radians prefix, or -90deg
@@ -557,7 +616,7 @@ class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no
 
     def aim(self):  # due to lack of targeting, this provides aesthetic flair by spinning the pattern on the tower is accordance with charge
         if curtime-self.shot_timer < self.fire_rate:
-            self.spinadjustment += (curtime-self.shot_timer) * self.shots_per_sec * 1.5 # only increases in speed while tower is charging
+            self.spinadjustment += (curtime-self.shot_timer) * (self.shots_per_sec**2) * 1.5 # only increases in speed while tower is charging
         self.spin += self.spinadjustment
         self.rotated_spinnybit = pygame.transform.rotate(self.spinnybit, self.spin)
         self.spinnybit_rect = self.rotated_spinnybit.get_rect(center=self.position)
@@ -616,10 +675,10 @@ while True:
         if True: # Handling all text to display per frame
             disp.blit(map1, (0,0)) # push background image
             livescounter = font.render(str(f"Lives: {lives} |  Wave: {wave}    "), True, (255,255,255)) # update the lives
-            disp.blit(livescounter,(10,10)) # display lives on screen
+            disp.blit(livescounter,(120,10)) # display lives on screen
             disp.blit(Instructions,(600,10))
             gold_readout=font.render(str(gold), True, (255,255,100))
-            gold_rect=gold_readout.get_rect(topright=(scr_wi-10,10))
+            gold_rect=gold_readout.get_rect(topright=(scr_wi-120,10))
             disp.blit(gold_readout,gold_rect)
         if pressed_keys[K_SPACE]:
             if pressed_keys[K_w]:
@@ -641,6 +700,7 @@ while True:
                     towers_rects.append(new_tower.baserect) # keeps track of where towers are for      efficient tower placement validation
                     clock=curtime
         wavespawn()  # handles spawning of enemies, progression of waves, HP scaling
+        wavebutton()
         for bob in enemies: # move and draw enemies
             bob.move()
             bob.draw(disp)
@@ -672,7 +732,9 @@ while True:
         drag()
         if not pressed_keys[K_SPACE]:
             select_tower()
+        state = PauseButton(state)
     elif state == 2:
+        state = PauseButton(state)
         pass # PAUSE    -not yet implimented
     elif state == 3:
         disp.fill((0,0,0)) # UPGRADES    -not yet implimented
