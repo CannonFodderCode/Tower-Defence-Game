@@ -492,6 +492,7 @@ class Tower(pygame.sprite.Sprite):  # standard Tower. basic, does the job. not e
         self.damage = int(self.damage * 1.3)
         self.range = int(self.range * 1.1)
         self.shots_per_sec = round(self.shots_per_sec*1.2, 1)
+        self.fire_rate = 1/self.shots_per_sec
         print(self.damage)
         self.upgrade_cost = int((2*(self.level+2)+6)*self.cost/10)
 
@@ -556,7 +557,7 @@ class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no
 
     def aim(self):  # due to lack of targeting, this provides aesthetic flair by spinning the pattern on the tower is accordance with charge
         if curtime-self.shot_timer < self.fire_rate:
-            self.spinadjustment += (curtime-self.shot_timer)*1.5 # only increases in speed while tower is charging
+            self.spinadjustment += (curtime-self.shot_timer) * self.shots_per_sec * 1.5 # only increases in speed while tower is charging
         self.spin += self.spinadjustment
         self.rotated_spinnybit = pygame.transform.rotate(self.spinnybit, self.spin)
         self.spinnybit_rect = self.rotated_spinnybit.get_rect(center=self.position)
@@ -576,7 +577,7 @@ class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no
         self.damage = int(self.damage * 1.3)
         self.range = int(self.range * 1.1)
         self.shots_per_sec = round(self.shots_per_sec*1.2, 1)
-        print(self.damage)
+        self.fire_rate = 1/self.shots_per_sec
         self.upgrade_cost = int((2*(self.level+2)+6)*self.cost/10)
 
 class Mouse(pygame.sprite.Sprite):  # used to detect if tower placement is valid
