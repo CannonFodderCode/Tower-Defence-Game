@@ -10,14 +10,11 @@ add wave pattern + spawning loops
 Different Tower types - Basic, Slammer
 Tower info pannel when placing - cost (currently affordable?), damage, range, fire rate(rps)  - blit on other side of map to cursor.
 Upgrade pannel implimented
-FIX THE SPINNY BIT ON SLAMMER
 for upgrade pannel: if mouse collide with self.rect: dragged = True if mouseX the other side and dragged swap sides. if mouse not down dragged=False
 new Towers index their info from the "~database~" (list)
 
 Next Steps:
-
-IMPROVE PANNEL PERFOMANCE! -scan for changes to avoid re-encoding text each frame? -Avoid creating new surfaces over 100 times a second.
-
+Ballence Tower Upgrade prices and increaces. (maybe index (another) list)
 draw tower bases first, then turrets, then range to prevent overlaps
 FIX - when selected and hovered over, tower tange draws twice
 re-order blit sequence to ensure important stuff (lives, money, etc) doesnt get overlapped!
@@ -43,7 +40,7 @@ add smart wave calling (if len(enemies)==0, if wave_spawn counter==wavestyle[1],
 Hold space and press w to select a standard tower, press a to select a Slammer tower, click to place. drag the info box when selecting 
 a tower to move it to the other side (click a tower to select its information, or press esc to close). Towers automatically shoot, you
 can see your lives in the top left corner, Gold in the top right and wave information is displayed in the terminal. Waves scale up in 
-dificulty and take a random pattern
+difficulty and take a random pattern
 '''
 import pygame, sys, time
 from pygame.locals import *
@@ -166,34 +163,66 @@ if True: # Sets up info pannel loading
     Rtower_upgrade_infill = pygame.image.load("E:\Python code on VSC\Tower Defence\Right Tower Upgrade Infill.png")
     Rtower_upgrade_infill = pygame.transform.scale(Rtower_upgrade_infill, (360 ,960))
 
-pannelposition=2 # Defaults to right side of the screen
-def open_info():  # opens a tower info pannel away from the cursor when space is held while towers are being placed
-    global pannelposition
-    current_tower_info = pygame.Surface((360,800),pygame.SRCALPHA) # new surface to clear old info when tower is changed
+    # Pannel surface creation
+    Pannel = pygame.Surface((400, 800), pygame.SRCALPHA)
+    upgrade_pannel = pygame.Surface((400, 960), pygame.SRCALPHA)
+
+def get_info(tower_index):
+    Surface = pygame.Surface((360,800),pygame.SRCALPHA) # new surface to clear old info when tower is changed
     Name = font.render(str(Tower_info[tower_index][0]), True, (100,150,255))
-    current_tower_info.blit(Name, (80,60))  # blits Name to Info pannel instance
+    Surface.blit(Name, (80,60))  # blits Name to Info pannel instance
     Cost = font.render(str(Tower_info[tower_index][4]), True, (0,0,0))
-    current_tower_info.blit(Cost, (110, 650))
+    Surface.blit(Cost, (110, 650))
     for i in range(1,4):
         item = font.render(str(Tower_info[tower_index][i]), True, (255,255,255))
-        current_tower_info.blit(item, (245, Y_height[i-1]))
+        Surface.blit(item, (245, Y_height[i-1]))
+    return Surface
+Standard_info_pannel = get_info(0)
+Slammer_info_pannel = get_info(1)
+
+
+update = True
+previous = 1
+pannelposition=2 # Defaults to right side of the screen
+def open_info():  # opens a tower info pannel away from the cursor when space is held while towers are being placed
+    global pannelposition, previous, update
+    if tower_index == 0:
+        if previous != 0:
+            update = True
+        current_tower_info = Standard_info_pannel
+        previous = 0
+    elif tower_index == 1:
+        if previous != 1:
+            update = True
+        current_tower_info = Slammer_info_pannel
+        previous = 1
     if pressed_keys[K_SPACE]:
         if pygame.mouse.get_pos()[0] > 2*scr_wi/3:
+            if pannelposition != 1:
+                update = True
             pannelposition = 1
         elif pygame.mouse.get_pos()[0] < scr_wi/3:
+            if pannelposition != 2:
+                update = True
             pannelposition = 2
-        if pannelposition == 1: #if mouse got close to right side of screen last
-            back_rect = back.get_rect(topleft = (0,120))
-            disp.blit(back, back_rect) #blit to left
-            disp.blit(info, (0,120))
-            disp.blit(text_pane, (0, 120))
-            disp.blit(current_tower_info, (0, 120))
+        if pannelposition == 1:
+            if update:
+                Pannel.fill((0,0,0,0))
+                Pannel.blit(back, (0,0)) #blit to left 
+                Pannel.blit(info, (0,0))
+                Pannel.blit(text_pane, (0,0))
+                Pannel.blit(current_tower_info, (0,0))
+                update = False
+            disp.blit(Pannel, (0,120))
         elif pannelposition == 2: #if mouse got close to left side of screen last
-            back_rect = Rback.get_rect(topright = (scr_wi,120))
-            disp.blit(Rback, back_rect) #blit to right
-            disp.blit(info, (scr_wi-360, 120))
-            disp.blit(text_pane, (scr_wi-360, 120))    
-            disp.blit(current_tower_info, (scr_wi-360, 120))                
+            if update:
+                Pannel.fill((0,0,0,0))
+                Pannel.blit(Rback, (0,0))
+                Pannel.blit(info, (40,0))
+                Pannel.blit(text_pane, (40,0))
+                Pannel.blit(current_tower_info, (40,0))
+                update = False
+            disp.blit(Pannel, (scr_wi-400,120))
 
 tower_index = 0
 def tower_select(index, location): # creates a tower at a location
@@ -201,7 +230,7 @@ def tower_select(index, location): # creates a tower at a location
     return list[index]
 
 def drag():  # allows the user to drag upgrade pannels to eithe side of the screen
-    global Upgrade_pos, dragged
+    global Upgrade_pos, dragged, update
     if target != None:
         if back_rect.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
             dragged=True
@@ -209,38 +238,47 @@ def drag():  # allows the user to drag upgrade pannels to eithe side of the scre
             dragged=False
         if dragged and mouse[0]<(scr_wi/3) and Upgrade_pos == "right":
             Upgrade_pos = "left"
+            update = True
         elif dragged and mouse[0]>(2*scr_wi/3) and Upgrade_pos == "left":
             Upgrade_pos = "right"
+            update = True
 
 def select_tower(): # Allows the user to click on a tower to display an pannel with its info (and soon upgrades!)
-    global target, gold
+    global target, gold, update
     text_pane = pygame.Surface((360,800),pygame.SRCALPHA)
     if pygame.mouse.get_pressed()[0] and not dragged:
         for tower in towers:
             if tower.rect.collidepoint(mouse):
                 target = tower
+                update = True
                 break
     if target != None:
-        Name = font.render(str(target.name), True, (100,150,255))
-        text_pane.blit(Name, (80,60))
-        selected_tower_information = info_font.render(str(target.damage), True, (255,255,255))
-        text_pane.blit(selected_tower_information, (245,Y_height[0]))
-        selected_tower_information = info_font.render(str(target.shots_per_sec), True, (255,255,255))
-        text_pane.blit(selected_tower_information, (245,Y_height[1]))
-        selected_tower_information = info_font.render(str(target.range), True, (255,255,255))
-        text_pane.blit(selected_tower_information, (245,Y_height[2]))
-        target.draw_range(disp)
+        if update:
+            Name = font.render(str(target.name), True, (100,150,255))
+            text_pane.blit(Name, (80,60))
+            selected_tower_information = info_font.render(str(target.damage), True, (255,255,255))
+            text_pane.blit(selected_tower_information, (245,Y_height[0]))
+            selected_tower_information = info_font.render(str(target.shots_per_sec), True, (255,255,255))
+            text_pane.blit(selected_tower_information, (245,Y_height[1]))
+            selected_tower_information = info_font.render(str(target.range), True, (255,255,255))
+            text_pane.blit(selected_tower_information, (245,Y_height[2]))
+        if not target.baserect.collidepoint(mouse): # prevents range being drawn twice as mouse if over the tower
+            target.draw_range(disp)
         if Upgrade_pos=="left":
-            disp.blit(tower_upgrade_pannel, (0,120))
-            disp.blit(tower_upgrade_infill, (0,120))
-            disp.blit(Upgrade_pannel_static, (0,120))
-            disp.blit(text_pane, (0,120))
-            back_rect.left = 0
-            sell_text = font.render(str(target.sellprice), True, (255,255,255))
-            disp.blit(sell_text, (20, scr_hi-60))
-            Upgrade_text = font.render(str(target.upgrade_cost), True, (255,255,255))
-            disp.blit(Upgrade_text, (100, scr_hi-60))
+            if update:
+                upgrade_pannel.fill((0,0,0,0))
+                upgrade_pannel.blit(tower_upgrade_pannel, (0,0))
+                upgrade_pannel.blit(tower_upgrade_infill, (0,0))
+                upgrade_pannel.blit(Upgrade_pannel_static, (0,0))
+                upgrade_pannel.blit(text_pane, (0,0))
+                back_rect.left = 0
+                sell_text = font.render(str(target.sellprice), True, (255,255,255))
+                upgrade_pannel.blit(sell_text, (20, 900))
+                Upgrade_text = font.render(str(target.upgrade_cost), True, (255,255,255))
+                upgrade_pannel.blit(Upgrade_text, (100, 900))
+                update = False
             sell_button = pygame.Rect(0, 920, 80, 160)
+            disp.blit(upgrade_pannel, (0,120))
             if clicked(sell_button): # Tower sold
                 sell(target)
                 target = None
@@ -248,28 +286,31 @@ def select_tower(): # Allows the user to click on a tower to display an pannel w
             if clicked(Upgrade_button) and gold>=target.upgrade_cost:
                 print(target.upgrade_cost, "upgrade cost")
                 gold -= target.upgrade_cost
+                update = True
                 target.upgrade()
-                print(target.level)
         elif Upgrade_pos == "right":
-            disp.blit(Rtower_upgrade_pannel, ((scr_wi-400),120))
-            disp.blit(Rtower_upgrade_infill, ((scr_wi-360),120)) 
-            disp.blit(Upgrade_pannel_static, ((scr_wi-360),120))
-            disp.blit(text_pane, ((scr_wi-360),120))
-            back_rect.right = scr_wi
-            sell_text = font.render(str(target.sellprice), True, (255,255,255))
-            disp.blit(sell_text, (scr_wi-60, scr_hi-60))
-            Upgrade_text = font.render(str(target.upgrade_cost), True, (255,255,255))
-            disp.blit(Upgrade_text, (scr_wi-220, scr_hi-60))
+            if update:
+                upgrade_pannel.fill((0,0,0,0))
+                upgrade_pannel.blit(Rtower_upgrade_pannel, (0,0))
+                upgrade_pannel.blit(Rtower_upgrade_infill, (40,0))
+                upgrade_pannel.blit(Upgrade_pannel_static, (40,0))
+                upgrade_pannel.blit(text_pane, (40,0))
+                back_rect.right = scr_wi
+                sell_text = font.render(str(target.sellprice), True, (255,255,255))
+                upgrade_pannel.blit(sell_text, (340, 900))
+                Upgrade_text = font.render(str(target.upgrade_cost), True, (255,255,255))
+                upgrade_pannel.blit(Upgrade_text, (180, 900))
+                update = False
             sell_button = pygame.Rect(1840,920, 80, 160)
+            disp.blit(upgrade_pannel, (scr_wi-400, 120))
             if clicked(sell_button):
                 sell(target)
                 target = None
             Upgrade_button = pygame.Rect(1680, 920, 160, 160)
             if clicked(Upgrade_button) and gold>=target.upgrade_cost:
-                print(target.upgrade_cost, "upgrade cost")
                 gold -= target.upgrade_cost
+                update = True
                 target.upgrade()
-                print(target.level)
         if pressed_keys[K_ESCAPE]:
             target=None
 
@@ -377,6 +418,7 @@ class Tower(pygame.sprite.Sprite):  # standard Tower. basic, does the job. not e
         self.position = location
         self.turret_colour=(0,200,100)
         self.range = Tower_info[0][3]
+        self.saved_range = self.range
         self.shots_per_sec = Tower_info[0][2]
         self.fire_rate = 1/self.shots_per_sec
         self.target = None
@@ -384,7 +426,7 @@ class Tower(pygame.sprite.Sprite):  # standard Tower. basic, does the job. not e
         self.damage = Tower_info[0][1]
         self.level = 1
         self.upgrade_cost = 6
-        self.sellprice = 8
+        self.sellprice = int(self.cost*0.8)
         #base setup
         self.baseimage = pygame.Surface((74,74))
         self.baseimage.fill((180,0,50))
@@ -418,7 +460,13 @@ class Tower(pygame.sprite.Sprite):  # standard Tower. basic, does the job. not e
             self.draw_range(disp)
 
     def draw_range(self, disp):
-        disp.blit(self.rangeimage, self.rangerect)
+        if self.range != self.saved_range: # avoiding constant Surface creation. only happens when range updates
+            self.rangeimage = pygame.Surface((self.range*2,self.range*2), pygame.SRCALPHA)
+            self.rangeimage.fill((0,0,0,0))
+            self.rangerect = self.rangeimage.get_rect(center=self.position)
+            pygame.draw.circle(self.rangeimage, (255,255,255,40), (self.range,self.range), self.range)
+            self.saved_range = self.range
+        disp.blit(self.rangeimage, self.rangerect)     
 
     def aim(self, target):
         self.turret_angle = 90-degrees(angle_finder(self.baserect.center, target.rect.center)) #(pi/2)---
@@ -439,15 +487,20 @@ class Tower(pygame.sprite.Sprite):  # standard Tower. basic, does the job. not e
                 self.target.HP -= self.damage
 
     def upgrade(self):
+        self.cost += self.upgrade_cost
         self.level += 1
-        self.upgrade_cost = int((2*self.level*(self.level+2)+6)*self.cost/10)
+        self.damage = int(self.damage * 1.3)
+        self.range = int(self.range * 1.1)
+        self.shots_per_sec = round(self.shots_per_sec*1.2, 1)
+        print(self.damage)
+        self.upgrade_cost = int((2*(self.level+2)+6)*self.cost/10)
 
 class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no aiming.
     def __init__(self, location):
         super().__init__()
         self.cost = Tower_info[1][4]
         self.name = Tower_info[1][0]
-        self.sellprice = 14
+        self.sellprice = int(self.cost*0.8)
         self.ID = "NoTarget"
         self.position = location
         self.shots_per_sec = Tower_info[1][2]
@@ -456,6 +509,7 @@ class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no
         self.shot_timer = curtime
         self.damage = Tower_info[1][1]
         self.range = Tower_info[1][3]  # so smol.
+        self.saved_range = self.range
         self.spin = 1 # wheeeeeeee
         self.hit_circle = pygame.Surface((self.range*2,self.range*2), pygame.SRCALPHA)
         self.hit_circle.fill((0,0,0,0))
@@ -491,7 +545,13 @@ class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no
         if self.baserect.collidepoint(mousex, mousey):
             self.draw_range(disp)
 
-    def draw_range(self,disp):
+    def draw_range(self, disp):
+        if self.range != self.saved_range: # avoiding constant Surface creation. only happens when range updates
+            self.rangeimage = pygame.Surface((self.range*2,self.range*2), pygame.SRCALPHA)
+            self.rangeimage.fill((0,0,0,0))
+            self.rangerect = self.rangeimage.get_rect(center=self.position)
+            pygame.draw.circle(self.rangeimage, (255,255,255,40), (self.range,self.range), self.range)
+            self.saved_range = self.range
         disp.blit(self.rangeimage, self.rangerect)
 
     def aim(self):  # due to lack of targeting, this provides aesthetic flair by spinning the pattern on the tower is accordance with charge
@@ -511,8 +571,13 @@ class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no
             self.shot_timer=curtime
 
     def upgrade(self):
+        self.cost += self.upgrade_cost
         self.level += 1
-        self.upgrade_cost = int((2*self.level*(self.level+2)+6)*self.cost/10)
+        self.damage = int(self.damage * 1.3)
+        self.range = int(self.range * 1.1)
+        self.shots_per_sec = round(self.shots_per_sec*1.2, 1)
+        print(self.damage)
+        self.upgrade_cost = int((2*(self.level+2)+6)*self.cost/10)
 
 class Mouse(pygame.sprite.Sprite):  # used to detect if tower placement is valid
     def __init__(self):
@@ -572,7 +637,6 @@ while True:
                     gold-= Tower_info[tower_index][4] # removes tower price from funds
                     new_tower = tower_select(tower_index, location) #Tower(location)
                     towers.add(new_tower) 
-                    print(new_tower.baserect) 
                     towers_rects.append(new_tower.baserect) # keeps track of where towers are for      efficient tower placement validation
                     clock=curtime
         wavespawn()  # handles spawning of enemies, progression of waves, HP scaling
