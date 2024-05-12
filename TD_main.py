@@ -7,14 +7,15 @@ enemy hp scaling
 money per kill + tower cost (gold) + new colour for invalid tower placement if gold is too low
 add a "hold space tp place towers" instruction on screen (temporary)
 add wave pattern + spawning loops
-Different Tower types - Basic, Slammer
+Different Tower types - Basic, Slammer, Trap
 Tower info pannel when placing - cost (currently affordable?), damage, range, fire rate(rps)  - blit on other side of map to cursor.
 Upgrade pannel implimented
-for upgrade pannel: if mouse collide with self.rect: dragged = True if mouseX the other side and dragged swap sides. if mouse not down dragged=False
+Allow user to drag upgrade pannel to either side
 new Towers index their info from the "~database~" (list)
 add smart wave calling
 
 Next Steps:
+buff items - tower amplifiers (maybe only 1 square instead of 2x2?)
 Ballence Tower Upgrade prices and increaces. (maybe index (another) list)
 draw tower bases first, then turrets, then range to prevent overlaps
 re-order blit sequence to ensure important stuff (lives, money, etc) doesnt get overlapped!
@@ -25,14 +26,14 @@ later: (unprioritised)
 Music?
 SFX
 Hide instructions inside a button/dropdown/PAUSE MENU instead of users_face.blit(instructions)
-tower upgrades (both in-game and perminent "research" style)
 different enemies -pulse to disable towers for a time? -Fast -Armoured(-30% -2 damage modifier) -invisible when hit for 5s -BOSS BOI
-different tower types  (Trap-(1x2 either side of track, covers the 2x2 square on track), Piercing shot, !necrotower!-(enemies that die in its range resurect as allies, 0 dmg), Missile launcher-(min. range?), shotgun tower, ice launcher-(slow effect), flame thrower-(cancels freeze))
-buff items - tower amplifiers (maybe only 1 square instead of 2x2?)
+different tower types  (Piercing shot, !necrotower!-(enemies that die in its range resurect as allies, 0 dmg), Missile launcher-(min. range?), shotgun tower, ice launcher-(slow effect), flame thrower-(cancels freeze))
 ? fuse tower types when in a 2x2 array and upgraded? (steal from BTTD series)
 abilities to freeze enemies, buff towers in a zone, place blockades on tracks...
-launch config window before game (sepperate while loop) to allow user to choose a window size, then impliment a scale function for all rect objects
+maybe not needed: launch config window before game (sepperate while loop) to allow user to choose a window size, then impliment a scale function for all rect objects
 
+Potential Bugs:
+Tower wasnt upgrading properly - no gold taken, cost display updating, not saved when diselected, no stats increase
 '''
 # Instructions:
 ''' (big green button is start)
@@ -51,7 +52,6 @@ pygame.init()
 if True:  # Display setup
     scr_wi=1920
     scr_hi=1080
-    disp=pygame.display.set_mode((scr_wi, scr_hi))
     pygame.display.set_caption("Tower Defence")  # Title of window
     FPS=120
     FrPS=pygame.time.Clock()
@@ -59,8 +59,15 @@ if True:  # Display setup
     font = pygame.font.Font(None, 50)
     info_font = pygame.font.Font(None, 40)
 
+print("Entering fullscreen mode will scale the window to fit your screen, automatically adjusting aspect ratios accordingly.")
+if input("Enter 1 for fullscreen or anything else for 1080x1920 windowed") == 1:
+    disp=pygame.display.set_mode((scr_wi, scr_hi), pygame.FULLSCREEN)
+else:
+    print("defaulting to windowed")
+    disp=pygame.display.set_mode((scr_wi, scr_hi))
+
 lives=3  # currently low for testing - should be 20
-gold = 500
+gold = 50
 if True:  # Wave marking, and spawn distribution
     wave = 1
     waveHP = int(20 + wave + (1.5*((wave**1.5)+2))*log(wave+2))
@@ -70,7 +77,7 @@ if True:  # Wave marking, and spawn distribution
     wavecomplete = True
 
 # A list to be indexed from to grab tower info when creating new towers. will eventually become source for new tower stats (perminant upgrades)
-Tower_info = [("Standard", 5, 3, 300, 10), ("Slammer", 12, 1, 120, 18)]  #(Tower Name, Damg, FR (s/s), Range, Cost)
+Tower_info = [("Standard", 4, 2.5, 300, 10, "no special"), ("Slammer", 12, 1, 120, 18, "no special"), ("Trap", 2, 4, 40, 12, 20)]  #(Tower Name, Damg, FR (s/s), Range, Cost)
 
 Instructions = font.render(str("Hold SPACE to place towers. W = Basic, A = Slammer"), True, (255,255,255))
 
@@ -85,7 +92,7 @@ if True:  # Map 1 setup
     map1=pygame.transform.scale(map1,(scr_wi, scr_hi)) # scale the path
     map1NODES=[14,16,4,24,30,8,20,16,38,4,44,28] #given as a value for the updated coordinate ONLY. eg; y=currentY x=mapNODES[0]
     #map1pathbounding contains tuples, each using the cooridnates of (topleft-X,topleft-Y, bottomright-X, bottomright-Y), and is used for checking overlap weith the path when placing a tower
-    map1pathbounding = [(0,120,600,200),(520,200,600,680),(120,600,520,680),(120,680,200,1000),(200,920,1240,1000),(1160,280,1240,920),(760,280,1160,360),(760,360,840,680),(840,600,1560,680),(1480,120,1560,600),(1560,120,1800,200),(1720,200,1800,1080)]
+    map1pathbounding = [(0,120,600,200),(520,120,600,680),(120,600,600,680),(120,600,200,1000),(120,920,1240,1000),(1160,280,1240,1000),(760,280,1240,360),(760,280,840,680),(760,600,1560,680),(1480,120,1560,680),(1480,120,1800,200),(1720,120,1800,1080)]
     dist_per_node = [0, 600, 1080, 1480, 1800, 2840, 3480, 3880, 4200, 4920, 5400, 5640, 6520] # total distance from start point (used for target priority)
 
 paths=[]
@@ -100,28 +107,28 @@ def angle_finder(start, end): # returns the angle between 2 points in radians
     angle = atan2((end[1]-start[1]),(end[0]-start[0]))
     return(angle % (2*pi))
 
-def in_range(ob1, ob2):    # Checks if first inputs range covers the second object
-    distance = ob1.range# + ob2
-    totaldistance=(sqrt(((ob1.rect.centerx-ob2.rect.centerx)**2) + (ob1.rect.centery-ob2.rect.centery)**2))
+def in_range(tower, target):    # Checks if first inputs range covers the second object
+    distance = tower.range# + target
+    totaldistance=(sqrt(((tower.rect.centerx-target.rect.centerx)**2) + (tower.rect.centery-target.rect.centery)**2))
     if totaldistance<=distance:
         return True
     else:
         return False
 
-mousedown = False
+mousedown = [False, False, False]  # indexing a list avoids cross-talk issues when detecting objects that cna be clicked with LMB or RMB
 def clicked(item, mousebutton): # only returns true when the mouse is released (used for things that shouldnt be pressed 120 times per second...)
     global mousedown
-    if mousedown and not pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
-        mousedown = False
-        return True
+    if mousedown[mousebutton] and not pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
+        mousedown[mousebutton] = False
+        return True # if it was pressed, and has jkust been released
     if not pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
-        mousedown = False
+        mousedown[mousebutton] = False
         return False
     elif pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
-        mousedown = True
+        mousedown[mousebutton] = True
 
 #   TOWER PLACEMENT AND UPGRADING
-selection=pygame.Surface((74,74), pygame.SRCALPHA) #a visual indicator for tower placement
+selection=pygame.Surface((74,74), pygame.SRCALPHA) # a visual indicator for tower placement
 def draw_placement_guide(colour, location, Range):
     selection.fill(colour) # fills RED is invalid, fills WHITE if valid
     TRange = Range
@@ -145,7 +152,7 @@ if True: # Sets up info pannel loading
     text_pane = pygame.Surface((360,800),pygame.SRCALPHA)
     Upgrade_pannel_static = pygame.Surface((360,800),pygame.SRCALPHA)
     info_titles = ["Damage:","Fire Rate:","Range:"]
-    Y_height = [370, 410, 450]
+    Y_height = [370, 410, 450, 490]
     counter=0
     while counter < 3: # blits info_titles to their respective Y_height
         info_text = info_font.render(str(info_titles[counter]), True, (255,255,255))
@@ -178,7 +185,11 @@ def get_info(tower_index):
     return Surface
 Standard_info_pannel = get_info(0)
 Slammer_info_pannel = get_info(1)
-
+Trap_info_pannel = get_info(2)
+poison = font.render(str(Tower_info[2][5]), True, (255,255,255))
+poison_text = info_font.render(str("Poison:"), True, (255,255,255))
+Trap_info_pannel.blit(poison, (245,490))
+Trap_info_pannel.blit(poison_text, (45,490))
 
 update = True
 previous = 1
@@ -195,6 +206,11 @@ def open_info():  # opens a tower info pannel away from the cursor when space is
             update = True
         current_tower_info = Slammer_info_pannel
         previous = 1
+    elif tower_index == 2:
+        if previous != 2:
+            update = True
+        current_tower_info = Trap_info_pannel
+        previous = 2
     if pressed_keys[K_SPACE]:
         if pygame.mouse.get_pos()[0] > 2*scr_wi/3:
             if pannelposition != 1:
@@ -225,9 +241,9 @@ def open_info():  # opens a tower info pannel away from the cursor when space is
 
 tower_index = 0
 def tower_select(index, location): # creates a tower at a location
-    list = [Tower(location), Slammer(location)]
+    list = [Tower(location), Slammer(location), Trap(location)]
     return list[index]
-
+target
 def drag():  # allows the user to drag upgrade pannels to eithe side of the screen
     global Upgrade_pos, dragged, update
     if target != None:
@@ -261,6 +277,10 @@ def select_tower(): # Allows the user to click on a tower to display an pannel w
             text_pane.blit(selected_tower_information, (245,Y_height[1]))
             selected_tower_information = info_font.render(str(target.range), True, (255,255,255))
             text_pane.blit(selected_tower_information, (245,Y_height[2]))
+            if target.name.lower() == "trap":
+                text_pane.blit(poison_text, (45,Y_height[3]))
+                selected_tower_information = info_font.render(str(target.poison[0]), True, (255,255,255))
+                text_pane.blit(selected_tower_information, (245,Y_height[3]))
         if not target.baserect.collidepoint(mouse): # prevents range being drawn twice as mouse if over the tower
             target.draw_range(disp)
         if Upgrade_pos=="left":
@@ -348,17 +368,15 @@ def wavespawn(): # spawns each enemy in the wave, according to the wave type, th
 
 update_button = True
 button = pygame.Surface((100,100), pygame.SRCALPHA)
+button_rect = button.get_rect(topleft=(10,10))
 def PauseButton(state):
     global update_button
-    #button = pygame.Rect(10,10,100,100)
-    button_rect = button.get_rect(topleft=(10,10))
     if clicked(button_rect, 0):
         update_button = True
         if state == 1:
             state = 2
         elif state == 2:
             state = 1
-        print("BUTTON PRESSED")
     if state == 1 and update_button:
         button.fill((0,0,0,0))
         pygame.draw.line(button, (255,255,100),(20,0), (20,100),40)
@@ -381,29 +399,21 @@ def wavebutton():
     if wavesend == 0:
         wavesymbol.fill((255,0,0))
         if count == 0: # instant wave calls - no gap
-            #wavecomplete=True
             new_wave()
-            print(wave_list[wavesend], "wave called!")
             wavecomplete=True
     elif wavesend == 1:
         wavesymbol.fill((255,255,0))
         if len(enemies) == 0 and count == 0: # all enemies dead
-            #wavecomplete=True
             new_wave()
-            print(wave_list[wavesend], "wave called!")
             wavecomplete=True
     elif wavesend == 2:
         wavesymbol.fill((255,255,255))
-        if clicked(wavesymbol_button, 0) and count == 0:  # READ ME - when wave button is set to white, LMB restarts the cycle, instead of RMB for some reason - find time to fix...
+        if clicked(wavesymbol_button, 0) and count == 0:
             new_wave()
-            print(wave_list[wavesend], "wave called!")
             wavecomplete=True
     if clicked(wavesymbol_button, 2): # RMB to adjust wave calling (red = auto, yellow = when all killed, white = manual send)
         wavesend = (wavesend+1) % 3
-        print(count)
-        print(wave_list[wavesend], "has been set")
     disp.blit(wavesymbol, wavesymbol_button)
-
 
 #   CLASSES
 class enemy(pygame.sprite.Sprite):  # basic enemy. comes in groups, or tanky, or normal
@@ -424,6 +434,8 @@ class enemy(pygame.sprite.Sprite):  # basic enemy. comes in groups, or tanky, or
         self.nodecount+=1
         self.HP = waveHP
         self.value = 4   # PLACEHOLDER
+        self.poison = []
+        self.poisoned = False
     
     def draw(self, disp):
         disp.blit(self.image, self.rect)
@@ -436,11 +448,28 @@ class enemy(pygame.sprite.Sprite):  # basic enemy. comes in groups, or tanky, or
             self.new_y = ((map1NODES[self.nodecount]+choice((-0.5, 0.5, 0)))*40)
             self.target=(self.rect.centerx, self.new_y)
         self.nodecount+=1
-        #print(self.nodecount, "<node   -   Distance>", self.progress)            # commented out while not debugging path
-        #print(f"currently at {self.rect.center} aiming for: {self.target}")
 
     def move(self):
-        if self.HP<=0:
+        if len(self.poison)>=1:      # Dealing with poison damage (total damage, damager per tick, time)
+            if self.poisoned == False:
+                self.poisoned = True
+                self.image.fill((0,200,0))  # updates to a green colour
+                pygame.draw.polygon(self.image, (255,255,255), [(0,0), (0,19), (19,19), (19,0)],1)
+            for item in self.poison:
+                self.HP -= item[1]
+                item[0] -= item[1]
+                if item[0] <= 0:
+                    print("Damage expired")
+                    self.poison.remove(item)
+                if item[2] <= curtime:
+                    print("Time expired")
+                    self.poison.remove(item)
+        else:
+            if self.poisoned == True: # remove the poisoned effect
+                self.image.fill((200,0,0))
+                pygame.draw.polygon(self.image, (255,255,255), [(0,0), (0,19), (19,19), (19,0)],1)
+                self.poisoned = False
+        if self.HP <= 0:
             self.kill()
             global gold
             gold += self.value             #################################### add MONEH ###################################
@@ -460,7 +489,7 @@ class enemy(pygame.sprite.Sprite):  # basic enemy. comes in groups, or tanky, or
                 self.rect.centery -= self.speed
         elif self.rect.center==self.target:
             self.pick_target()
-        self.update_distance()
+        self.update_distance() # tracks self.progres for tower targeting
 
     def update_distance(self):
         self.node_dist = dist_per_node[self.nodecount]
@@ -471,20 +500,21 @@ class Tower(pygame.sprite.Sprite):  # standard Tower. basic, does the job. not e
     def __init__(self, location):
         super().__init__()
         #creation metrics
-        self.cost = Tower_info[0][4]
         self.name = Tower_info[0][0]
+        self.damage = Tower_info[0][1]
+        self.shots_per_sec = Tower_info[0][2]
+        self.range = Tower_info[0][3]
+        self.cost = Tower_info[0][4]
         self.ID = "Targeted"
         self.position = location
         self.turret_colour=(0,200,100)
-        self.range = Tower_info[0][3]
         self.saved_range = self.range
-        self.shots_per_sec = Tower_info[0][2]
         self.fire_rate = 1/self.shots_per_sec
         self.target = None
         self.shot_timer = curtime
-        self.damage = Tower_info[0][1]
         self.level = 1
         self.upgrade_cost = 6
+        self.upgrade_costs = (0,6,14,26,40,58,80,115,160,230)
         self.sellprice = int(self.cost*0.8)
         #base setup
         self.baseimage = pygame.Surface((74,74))
@@ -552,23 +582,22 @@ class Tower(pygame.sprite.Sprite):  # standard Tower. basic, does the job. not e
         self.range = int(self.range * 1.1)
         self.shots_per_sec = round(self.shots_per_sec*1.2, 1)
         self.fire_rate = 1/self.shots_per_sec
-        print(self.damage)
-        self.upgrade_cost = int((2*(self.level+2)+6)*self.cost/10)
+        self.upgrade_cost = self.upgrade_costs[self.level]
 
 class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no aiming.
     def __init__(self, location):
         super().__init__()
-        self.cost = Tower_info[1][4]
         self.name = Tower_info[1][0]
+        self.damage = Tower_info[1][1]
+        self.shots_per_sec = Tower_info[1][2]
+        self.range = Tower_info[1][3]  # so smol.
+        self.cost = Tower_info[1][4]
         self.sellprice = int(self.cost*0.8)
         self.ID = "NoTarget"
         self.position = location
-        self.shots_per_sec = Tower_info[1][2]
         self.fire_rate = 1/self.shots_per_sec
         self.target = "NA" # cannot aim. hits everything.
         self.shot_timer = curtime
-        self.damage = Tower_info[1][1]
-        self.range = Tower_info[1][3]  # so smol.
         self.saved_range = self.range
         self.spin = 1 # wheeeeeeee
         self.hit_circle = pygame.Surface((self.range*2,self.range*2), pygame.SRCALPHA)
@@ -638,6 +667,89 @@ class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no
         self.shots_per_sec = round(self.shots_per_sec*1.2, 1)
         self.fire_rate = 1/self.shots_per_sec
         self.upgrade_cost = int((2*(self.level+2)+6)*self.cost/10)
+        self.hit_circle = pygame.Surface((self.range*2,self.range*2), pygame.SRCALPHA)
+        self.hit_circle.fill((0,0,0,0))
+        pygame.draw.circle(self.hit_circle, (90,50,40,150), (self.range,self.range), self.range)
+        self.hit_circle_rect = self.hit_circle.get_rect(center=self.position)
+
+class Trap(pygame.sprite.Sprite): # a tower that gets placed directly on the track and poisons enemies
+    def __init__(self, location):
+        super().__init__()
+        # pull stats from list
+        self.name = Tower_info[2][0]
+        self.damage = Tower_info[2][1]
+        self.shots_per_sec = Tower_info[2][2]
+        self.fire_rate = 1/self.shots_per_sec
+        self.range = Tower_info[2][3]
+        self.saved_range = self.range
+        self.rangerect = self.range
+        self.cost = Tower_info[2][4]
+        self.poison = [Tower_info[2][5],(Tower_info[2][5]/(FPS*5)), 5]   # (total damage, damager per frame, time)
+
+        self.position = location
+        self.level = 1
+        self.upgrade_cost = 16
+        self.sellprice = int(self.cost*0.8)
+        self.ID = "NoClue"
+        self.target = None
+        self.shot_timer = curtime
+        #base setup
+        self.baseimage = pygame.Surface((74,74), pygame.SRCALPHA)
+        self.baseimage.fill((0,255,0,100))
+        self.baserect = pygame.Rect(location[0]- 38, location[1]-38, 80,80)
+        self.baserect.center = location
+        self.rect = self.baserect
+
+    def draw(self, disp):
+        disp.blit(self.baseimage, (self.baserect[0]+3,self.baserect[1]+3))
+    
+    def draw_range(self, disp): # just here to allow compatibility with other functions
+        pass
+
+    def aim(self, target):
+        pass
+    
+    def shoot(self):
+        if in_range(self,self.target) and curtime-self.shot_timer>self.fire_rate:
+            self.shot_timer = curtime
+            if self.target.HP < self.damage:
+                self.target.HP -= self.damage
+                self.target = None
+            else:
+                self.target.HP -= self.damage
+                self.target.poison.append([self.poison[0],self.poison[1], curtime+self.poison[2]])
+    
+    def upgrade(self):
+        self.cost += self.upgrade_cost
+        self.level += 1
+        self.damage = int(self.damage * 1.3)
+        self.range = int(self.range * 1.1)
+        self.shots_per_sec = round(self.shots_per_sec*1.2, 1)
+        self.fire_rate = 1/self.shots_per_sec
+        self.poison[0] = self.poison[0] * 1.3
+        self.poison[2] += 1
+        self.poison[1] = self.poison[0]/(FPS*self.poison[2])
+        self.upgrade_cost = int((2*(self.level+2)+6)*self.cost/10)
+
+class Amplifier(pygame.sprite.Sprite):  # a 1x1 block that increases the stats of the towers around it
+    def __init__(self, location):
+        super().__init__()
+        self.position = location
+        self.image = pygame.Surface((40,40),pygame.SRCALPHA)
+        self.image.fill((255,0,0))
+        self.baserect = self.image.get_rect(center = self.position)
+        self.effect_range = pygame.Rect(location[0]-5, location[1]-5, 50,50)
+        self.level = 1
+        self.cost = 12
+        self.upgrade_cost = 8
+
+        self.damageboost = 1.05
+        self.rangeboost = 1.07
+        self.FRboost = 1.07
+        self.specialboost = 1.10
+
+    def draw(self, disp):
+        disp.blit(self.image, self.baserect)
 
 class Mouse(pygame.sprite.Sprite):  # used to detect if tower placement is valid
     def __init__(self):
@@ -660,6 +772,7 @@ curtime = time.time()
 
 state = 0    # (0-Menu, 1-Game, 2-Paused, 3-Upgrades)
 
+
 while True:
     curtime=time.time()
     pressed_keys=pygame.key.get_pressed()
@@ -681,28 +794,56 @@ while True:
             gold_rect=gold_readout.get_rect(topright=(scr_wi-120,10))
             disp.blit(gold_readout,gold_rect)
         if pressed_keys[K_SPACE]:
-            if pressed_keys[K_w]:
+            if pressed_keys[K_w]:  # w for standard
                 tower_index = 0
-            elif pressed_keys[K_a]:
+            elif pressed_keys[K_a]:# a for slammer
                 tower_index = 1
+            elif pressed_keys[K_s]:# s for trap
+                tower_index = 2
             mouse_track.update(mouse)
             location=((((mouse[0]+20)//40)*40),((mouse[1]+20)//40)*40) # locks placement to a 40px grid, and averages the center of the tower to the mouse position
-            if (mouse_track.rect.collidelist(paths)!=-1) or (mouse_track.rect.collidelist(towers_rects)!=-1): # checks if tower would be blocked by other tower or path
+            if tower_index == 2:
+                for item in paths:
+                    if mouse_track.rect.right <= item.right and mouse_track.rect.left >= item.left and mouse_track.rect.top >= item.top and mouse_track.rect.bottom <= item.bottom and (mouse_track.rect.collidelist(towers_rects)== -1):
+                        placement_is_good = True
+                        if gold >= Tower_info[2][4]:
+                            draw_placement_guide((255,255,255,50),(location[0]-37, location[1]-37),Tower_info[tower_index][3])
+                            if pygame.mouse.get_pressed()[0] and curtime-clock>0.1:
+                                gold-= Tower_info[tower_index][4] # removes tower price from funds
+                                new_tower = tower_select(tower_index, location) #Tower(location)
+                                towers.add(new_tower) 
+                                towers_rects.append(new_tower.baserect) # keeps track of where towers are for      efficient tower placement validation
+                                clock=curtime
+                            break # break to stop red being drawn over the top when checking next path - also helps performance
+                        else:
+                            draw_placement_guide((255,255,0,50),(location[0]-37, location[1]-37),Tower_info[tower_index][3])
+                            break
+                    else:
+                        placement_is_good = False
+                if not placement_is_good:
+                    draw_placement_guide((255,0,0,50),(location[0]-37, location[1]-37),Tower_info[tower_index][3])
+                    placement_is_good = True
+
+            elif ((mouse_track.rect.collidelist(paths)!=-1) or (mouse_track.rect.collidelist(towers_rects)!=-1)): # checks if tower would be blocked by other tower or path
                 draw_placement_guide((255,0,0,50),(location[0]-37, location[1]-37),Tower_info[tower_index][3])
             elif (gold-Tower_info[tower_index][4]) <0: # checks cost of selection against funds
                 draw_placement_guide((255,255,0,50),(location[0]-37, location[1]-37),Tower_info[tower_index][3])
             else:
-                draw_placement_guide((255,255,255,50),(location[0]-37, location[1]-37),Tower_info[tower_index][3]) # draws a WHITE box where tower will appear
-                if pygame.mouse.get_pressed()[0] and curtime-clock>0.1:    
-                    gold-= Tower_info[tower_index][4] # removes tower price from funds
-                    new_tower = tower_select(tower_index, location) #Tower(location)
-                    towers.add(new_tower) 
-                    towers_rects.append(new_tower.baserect) # keeps track of where towers are for      efficient tower placement validation
-                    clock=curtime
+                if tower_index != 2:
+                    draw_placement_guide((255,255,255,50),(location[0]-37, location[1]-37),Tower_info[tower_index][3]) # draws a WHITE box where tower will appear
+                    if pygame.mouse.get_pressed()[0] and curtime-clock>0.1:    
+                        gold-= Tower_info[tower_index][4] # removes tower price from funds
+                        new_tower = tower_select(tower_index, location) #Tower(location)
+                        towers.add(new_tower) 
+                        towers_rects.append(new_tower.baserect) # keeps track of where towers are for      efficient tower placement validation
+                        clock=curtime
         wavespawn()  # handles spawning of enemies, progression of waves, HP scaling
         wavebutton()
         for bob in enemies: # move and draw enemies
             bob.move()
+            if bob.rect.colliderect(mouse_track):
+                HP_readout = font.render(str(bob.HP), True, (255,255,255),(0,0,0,50))
+                disp.blit(HP_readout, (scr_wi//2,scr_hi//2))
             bob.draw(disp)
         for tower in towers: # aims at target, draws tower, shoots
             if tower.ID == "NoTarget":
@@ -738,6 +879,8 @@ while True:
         pass # PAUSE    -not yet implimented
     elif state == 3:
         disp.fill((0,0,0)) # UPGRADES    -not yet implimented
+        if pygame.mouse.get_pressed()[0]:
+            state = 0
     for event in pygame.event.get(): #standard quit check loop...
             if event.type==QUIT:
                 pygame.quit()
