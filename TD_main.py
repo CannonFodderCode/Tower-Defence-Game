@@ -60,9 +60,11 @@ if True:  # Display setup
     info_font = pygame.font.Font(None, 40)
 
 print("Entering fullscreen mode will scale the window to fit your screen, automatically adjusting aspect ratios accordingly.")
-if input("Enter 1 for fullscreen or anything else for 1080x1920 windowed") == 1:
+fullscreen = input("Enter 1 for fullscreen or anything else for 1080x1920 windowed:\n")
+if fullscreen == "1":
     disp=pygame.display.set_mode((scr_wi, scr_hi), pygame.FULLSCREEN)
 else:
+    print(fullscreen)
     print("defaulting to windowed")
     disp=pygame.display.set_mode((scr_wi, scr_hi))
 
