@@ -1,7 +1,7 @@
 <html>
 <body>
 <h1>Current status</h1>
-<h4 style="color: #FF0000;">All images wil need to have their path updated to reflect their new file location on download</h4>
+<h4 style="color: #FF0000;">All images will need to have their path updated to reflect their new file location on download</h4>
 <p>Roadmap below - Updated daily if I remember</p>
 
 <ul>
