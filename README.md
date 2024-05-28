@@ -1,8 +1,8 @@
 <html>
 <body>
 <h1>Current status</h1>
-<h4 style="color: #FF0000;">All images will need to have their path updated to reflect their new file location on download</h4>
-<p>Roadmap below - Updated daily if I remember</p>
+<h4 style="color: #FF0000;">Upon download, line 1 will need to be updated to reflect the folder's new location. This is to update wherethe program looks for the required images</h4>
+<p>Roadmap below - Updated upon major changes or additions to the program</p>
 
 <ul>
   
@@ -13,13 +13,14 @@
   <li>Towers now automatically target the further along enemy</li>
   <li>EnemyHP scaling</li>
   <li>Money per kill + tower cost (gold) + new colour for invalid tower placement if gold is too low</li>
-  <li>Added a "hold space tp place towers" instruction on screen (temporary)</li>
+  <li>Added a "hold space to place towers" instruction on screen (temporary)</li>
   <li>Added wave pattern + spawning loops</li>
   <li>Different Tower types - Basic, Slammer, Trap</li>
   <li>Tower info pannel when placing - cost (currently affordable?), damage, range, fire rate(rps)  - blit on other side of map to cursor</li>
   <li>Upgrade pannel implimented</li>
   <li>Allow user to drag upgrade pannel to either side</li>
   <li>added smart wave calling</li>
+  <li>Launch config window before game (sepperate while loop) to allow user to choose a window size, then impliment a scale function for all rect objects</li>
 </ul>
 
 <li><h4>Next Steps:</h4></li>
@@ -43,13 +44,12 @@
 buff items - tower amplifiers (maybe only 1 square instead of 2x2?)</li>
   <li>Fuse tower types when in a 2x2 array? (steal from BTTD series)</li>
   <li>Abilities to freeze enemies, buff towers in a zone, place blockades on tracks...</li>
-  <li>(maybe not needed) - Launch config window before game (sepperate while loop) to allow user to choose a window size, then impliment a scale function for all rect objects</li>
-  <li>Add smart wave calling (if len(enemies)==0, if wave_spawn counter==wavestyle[1], or instantly (currently the only one used))</li>
+  <li>Hide instructions inside a button/dropdown/PAUSE MENU instead of users_face.blit(instructions)</li>
 </ul>
 </ul>
 <h3>Instructions:</h3>
 <p>(big green button is start)
-Hold space and press w to select a standard tower, press a to select a Slammer tower, click to place. drag the info box when selecting a tower to move it to the other side (click a tower to select its information, or press esc to close). Towers automatically shoot, you can see your lives in the top left corner, Gold in the top right and wave information is displayed in the terminal. Waves scale up in difficulty and take a random pattern. Right click in the top right to change wave calling modes: RED = instant, YELLOW = when clear, WHITE = on demand (left click to call)</p>
+Hold space and press w to select a standard tower, press a to select a Slammer tower, press s to select a Trap (can only be placed on tracks), click to place. drag the info box when selecting a tower to move it to the other side (click a tower to select its information, press esc to close). Towers automatically shoot, you can see your lives in the top left corner, Gold in the top right and wave information is currently displayed in the terminal. Waves scale up in difficulty and take a random pattern. Right click on the top right box to change wave calling modes: RED = instant, YELLOW = when clear, WHITE = on demand (left click to call)</p>
 </body>
 </html>
 
