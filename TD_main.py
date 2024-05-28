@@ -1,6 +1,7 @@
+FilePath = ("E:\Python code on VSC\Tower Defence\\")  # edit this string to reflect the current File path to Resources Folder
 # Checklist to reccord progress and future targets
 '''
-Done!
+            Done!
 Lives - enemies cost 1 life when leaked - death at 0 - displayed on screen
 tower placement guide
 enemy hp scaling
@@ -14,15 +15,15 @@ Allow user to drag upgrade pannel to either side
 new Towers index their info from the "~database~" (list)
 add smart wave calling
 
-Next Steps:
+            Next Steps:
 buff items - tower amplifiers (maybe only 1 square instead of 2x2?)
 Ballence Tower Upgrade prices and increaces. (maybe index (another) list)
 draw tower bases first, then turrets, then range to prevent overlaps
 re-order blit sequence to ensure important stuff (lives, money, etc) doesnt get overlapped!
 make a display for gold, lives, hours spent debugging, waves, etc
-        gamestate screens - menu, play, PAUSE, tutorial, Upgrades, stats, etc  -  in progress
+gamestate screens - menu, play, PAUSE, tutorial, Upgrades, stats, etc  -  in progress
 
-later: (unprioritised)
+            later: (unprioritised)
 Music?
 SFX
 Hide instructions inside a button/dropdown/PAUSE MENU instead of users_face.blit(instructions)
@@ -33,14 +34,16 @@ abilities to freeze enemies, buff towers in a zone, place blockades on tracks...
 maybe not needed: launch config window before game (sepperate while loop) to allow user to choose a window size, then impliment a scale function for all rect objects
 
 Potential Bugs:
-Tower wasnt upgrading properly - no gold taken, cost display updating, not saved when diselected, no stats increase
+Tower wasnt upgrading properly - no gold taken, cost display updating, not saved when diselected, no stats increase. No reliable way to reproduce found so far.
+Poison damage doesnt stack.
 '''
-# Instructions:
+#           Instructions:
 ''' (big green button is start)
 Hold space and press w to select a standard tower, press a to select a Slammer tower, click to place. drag the info box when selecting 
 a tower to move it to the other side (click a tower to select its information, or press esc to close). Towers automatically shoot, you
 can see your lives in the top left corner, Gold in the top right and wave information is displayed in the terminal. Waves scale up in 
-difficulty and take a random pattern
+difficulty and take a random pattern. Right click in the top right to change wave calling modes: RED = instant, YELLOW = when clear, 
+WHITE = on demand (left click to call)
 '''
 import pygame, sys, time
 from pygame.locals import *
@@ -49,8 +52,109 @@ from random import *
 
 pygame.init()
 
+scr_wi = 800 # initial size of config window to ensure compatability with low-spec devices
+scr_hi = 600
+
+pygame.display.set_caption("screen size config")
+disp = pygame.display.set_mode((scr_wi, scr_hi))
+
+font = pygame.font.Font(None, 50)
+smallfont = pygame.font.Font(None, 30)
+
+mousedown = [False, False, False]  # indexing a list avoids cross-talk issues when detecting objects that cna be clicked with LMB or RMB
+def clicked(item, mousebutton): # only returns true when the mouse is released (used for things that shouldnt be pressed 120 times per second...)
+    global mousedown
+    if mousedown[mousebutton] and not pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
+        mousedown[mousebutton] = False
+        return True # if it was pressed, and has just been released
+    if not pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
+        mousedown[mousebutton] = False
+        return False
+    elif pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
+        mousedown[mousebutton] = True
+
+
+intructions = font.render("Click your desired resolution", True, (255,255,0))
+
+button720 = pygame.Surface((200, 80))
+button720.fill((120,0,0))
+t720 = font.render("1280x720", True, (255,255,255))  # small screen
+button720.blit(t720, (5,5))
+button720_rect = button720.get_rect(topleft = (5,60))
+
+button1080 = pygame.Surface((200, 80))
+button1080.fill((120,0,0))
+t1080 = font.render("1920x1080", True, (255,255,255))  # standard screen
+button1080.blit(t1080, (5,5))
+button1080_rect = button1080.get_rect(topleft = (5,160))
+
+button1440 = pygame.Surface((200, 80))
+button1440.fill((120,0,0))
+t1440 = font.render("2560x1440", True, (255,255,255))  # big screen
+button1440.blit(t1440, (5,5))
+button1440_rect = button1440.get_rect(topleft = (5,260))
+
+fullscreen = pygame.Surface((200,100))
+fullscreen.fill((255,0,0))
+FS_text = font.render("Fullscreen", True, (255,255,255))
+fullscreen.blit(FS_text, (2,2))
+FS_text = smallfont.render("click to toggle", True, (255,255,255))
+fullscreen.blit(FS_text, (2,53))
+FS_Button = fullscreen.get_rect(topleft = (220, 60))
+fullscreenBOOL = False
+
+def make_FS_Button(Colour):
+    fullscreen.fill(Colour)
+    FS_text = font.render("Fullscreen", True, (255,255,255))
+    fullscreen.blit(FS_text, (2,2))
+    FS_text = smallfont.render("click to toggle", True, (255,255,255))
+    fullscreen.blit(FS_text, (2,53))
+    FS_Button = fullscreen.get_rect(topleft = (220, 60))
+
+while True:
+    mouse = pygame.mouse.get_pos()
+    disp.fill((0,0,0))
+    disp.blit(intructions, (5,5))
+    disp.blit(button720, button720_rect)
+    disp.blit(button1080, button1080_rect)
+    disp.blit(button1440, button1440_rect)
+    disp.blit(fullscreen, FS_Button)
+
+    if clicked(FS_Button, 0):
+        if fullscreenBOOL:
+            make_FS_Button((255,0,0))
+            fullscreenBOOL = False
+        elif not fullscreenBOOL:
+            make_FS_Button((0,255,0))
+            fullscreenBOOL = True
+    if button720_rect.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
+        end_hi = 720
+        end_wi = 1280
+        break
+    elif button1080_rect.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
+        end_hi = 1080
+        end_wi = 1920
+        break
+    elif button1440_rect.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
+        end_hi = 1440
+        end_wi = 2560
+        break
+
+    pygame.display.flip()
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+print(scr_wi, scr_hi, fullscreenBOOL)
+
+disp = pygame.Surface((1920, 1080))  # creates a mock window at the hardcoded resolution to scale later
+
+def scale(number):  # designed to scale mouse coordinates when playing in resolutions other than 1080p
+    return (number / end_wi) * 1920
+
 if True:  # Display setup
-    scr_wi=1920
+    scr_wi=1920  # Hard-coded resolution. gets scaled to the selected resolution before display update
     scr_hi=1080
     pygame.display.set_caption("Tower Defence")  # Title of window
     FPS=120
@@ -58,17 +162,15 @@ if True:  # Display setup
     top_surface=pygame.Surface((scr_wi, scr_hi), pygame.SRCALPHA) # A Surface to blit shapes to, such as lines for laser shots (avoiding having to make sprites)
     font = pygame.font.Font(None, 50)
     info_font = pygame.font.Font(None, 40)
+    BIGFont = pygame.font.Font(None, 140)
 
-print("Entering fullscreen mode will scale the window to fit your screen, automatically adjusting aspect ratios accordingly.")
-fullscreen = input("Enter 1 for fullscreen or anything else for 1080x1920 windowed:\n")
-if fullscreen == "1":
-    disp=pygame.display.set_mode((scr_wi, scr_hi), pygame.FULLSCREEN)
+if fullscreenBOOL:
+    final_window=pygame.display.set_mode((end_wi, end_hi), pygame.FULLSCREEN)
 else:
-    print(fullscreen)
-    print("defaulting to windowed")
-    disp=pygame.display.set_mode((scr_wi, scr_hi))
+    final_window=pygame.display.set_mode((end_wi, end_hi))
 
 lives=3  # currently low for testing - should be 20
+previous_lives = lives
 gold = 50
 if True:  # Wave marking, and spawn distribution
     wave = 1
@@ -84,13 +186,14 @@ Tower_info = [("Standard", 4, 2.5, 300, 10, "no special"), ("Slammer", 12, 1, 12
 Instructions = font.render(str("Hold SPACE to place towers. W = Basic, A = Slammer"), True, (255,255,255))
 
 if True: # Main Menu screen setup and buttons
-    TitleScreen = pygame.image.load(r"E:\Python code on VSC\Tower Defence\bad Menu Screen.png")  # formatted as raw to avoid string commands (\b)
+    TitleScreen = pygame.image.load(FilePath + "bad Menu Screen.png")
     TitleScreen = pygame.transform.scale(TitleScreen, (scr_wi,scr_hi))
     PlayButton = pygame.Rect(1000, 800, 480, 200)
     UpgradesButton = pygame.Rect(1640, 800, 200, 200)
+    PlayButtonText = BIGFont.render("GO", True, (255,255,255))
 
 if True:  # Map 1 setup      
-    map1=pygame.image.load("E:\Python code on VSC\Tower Defence\TD Map.png") # load in the path
+    map1=pygame.image.load(FilePath + "TD Map.png") # load in the path
     map1=pygame.transform.scale(map1,(scr_wi, scr_hi)) # scale the path
     map1NODES=[14,16,4,24,30,8,20,16,38,4,44,28] #given as a value for the updated coordinate ONLY. eg; y=currentY x=mapNODES[0]
     #map1pathbounding contains tuples, each using the cooridnates of (topleft-X,topleft-Y, bottomright-X, bottomright-Y), and is used for checking overlap weith the path when placing a tower
@@ -117,18 +220,6 @@ def in_range(tower, target):    # Checks if first inputs range covers the second
     else:
         return False
 
-mousedown = [False, False, False]  # indexing a list avoids cross-talk issues when detecting objects that cna be clicked with LMB or RMB
-def clicked(item, mousebutton): # only returns true when the mouse is released (used for things that shouldnt be pressed 120 times per second...)
-    global mousedown
-    if mousedown[mousebutton] and not pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
-        mousedown[mousebutton] = False
-        return True # if it was pressed, and has jkust been released
-    if not pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
-        mousedown[mousebutton] = False
-        return False
-    elif pygame.mouse.get_pressed()[mousebutton] and item.collidepoint(mouse):
-        mousedown[mousebutton] = True
-
 #   TOWER PLACEMENT AND UPGRADING
 selection=pygame.Surface((74,74), pygame.SRCALPHA) # a visual indicator for tower placement
 def draw_placement_guide(colour, location, Range):
@@ -145,9 +236,9 @@ if True: # Sets up info pannel loading
     target = None
     Upgrade_pos = "left" # required for upgrade pannel start
     dragged = False
-    info = pygame.image.load("E:\Python code on VSC\Tower Defence\Info Pannel Infill.png")
+    info = pygame.image.load(FilePath + "Info Pannel Infill.png")
     info = pygame.transform.scale(info, (360,800))
-    back = pygame.image.load("E:\Python code on VSC\Tower Defence\Tower Info Pannel.png")
+    back = pygame.image.load(FilePath + "Tower Info Pannel.png")
     back = pygame.transform.scale(back, (400,800))
     back_rect = back.get_rect(topleft = (0,120))
     Rback = pygame.transform.flip(back,True,False) # flips along X as to sit properly on other side of the screen
@@ -163,12 +254,12 @@ if True: # Sets up info pannel loading
         counter += 1
     
     # loading in resources for updrage pannel (current tower selected)
-    tower_upgrade_pannel = pygame.image.load("E:\Python code on VSC\Tower Defence\Tower Upgrade Pannel.png")
+    tower_upgrade_pannel = pygame.image.load(FilePath + "Tower Upgrade Pannel.png")
     tower_upgrade_pannel = pygame.transform.scale(tower_upgrade_pannel,(400, 960))
     Rtower_upgrade_pannel = pygame.transform.flip(tower_upgrade_pannel, True, False)
-    tower_upgrade_infill = pygame.image.load("E:\Python code on VSC\Tower Defence\Tower Upgrade Infill.png")
+    tower_upgrade_infill = pygame.image.load(FilePath + "Tower Upgrade Infill.png")
     tower_upgrade_infill = pygame.transform.scale(tower_upgrade_infill, (360, 960))
-    Rtower_upgrade_infill = pygame.image.load("E:\Python code on VSC\Tower Defence\Right Tower Upgrade Infill.png")
+    Rtower_upgrade_infill = pygame.image.load(FilePath + "Right Tower Upgrade Infill.png")
     Rtower_upgrade_infill = pygame.transform.scale(Rtower_upgrade_infill, (360 ,960))
 
     # Pannel surface creation
@@ -344,10 +435,14 @@ def sell(item):  # sell and delete towers
 
 #   WAVE HANDLING
 def new_wave():  # increases wave number, and selects its wave type & calculates the HP modifier
-    global wave, waveHP, wavestyle
+    global wave, waveHP, wavestyle, previous_lives, gold
     wave += 1
     wavestyle = (choice(((0, 10),(1, 15), (2, 25)))) #((dense, normal, or tightly grouped), total enemy count)
     waveHP = int(wave_HPmodifier[wavestyle[0]] * (20 + wave + int((1.5*((wave**1.5)+2))*log(wave+2)))) # provides a upward scaling that gets increasingly brutal, multiplied by HP modifier for wave type
+    if previous_lives == lives:
+        gold +=10     # No Lives Lost bonus gold per round
+    else:
+        previous_lives = lives
     print("new_wave was called")
 
 def wavespawn(): # spawns each enemy in the wave, according to the wave type, then calls new_wave() when done
@@ -461,10 +556,8 @@ class enemy(pygame.sprite.Sprite):  # basic enemy. comes in groups, or tanky, or
                 self.HP -= item[1]
                 item[0] -= item[1]
                 if item[0] <= 0:
-                    print("Damage expired")
                     self.poison.remove(item)
                 if item[2] <= curtime:
-                    print("Time expired")
                     self.poison.remove(item)
         else:
             if self.poisoned == True: # remove the poisoned effect
@@ -474,17 +567,17 @@ class enemy(pygame.sprite.Sprite):  # basic enemy. comes in groups, or tanky, or
         if self.HP <= 0:
             self.kill()
             global gold
-            gold += self.value             #################################### add MONEH ###################################
+            gold += self.value
         if self.rect.centery>(scr_hi):
             global lives
             lives-=1
             self.kill()
-        elif self.target[0]!= self.rect.centerx:  #check if (x = target x)
+        elif self.target[0]!= self.rect.centerx:  #check if hit the target destination on X axis
             if self.target[0]>self.rect.centerx: # traveling right
                 self.rect.centerx += self.speed
             else: #traveling left
                 self.rect.centerx -= self.speed
-        elif self.target[1]!= self.rect.centery:
+        elif self.target[1]!= self.rect.centery:  #check if hit the target destination on Y axis
             if self.target[1]>self.rect.centery: # traveling down
                 self.rect.centery += self.speed
             else: # traveling up
@@ -545,8 +638,8 @@ class Tower(pygame.sprite.Sprite):  # standard Tower. basic, does the job. not e
         disp.blit(self.baseimage, (self.baserect[0]+3,self.baserect[1]+3))
         disp.blit(self.turretimage,self.turretrect)
         disp.blit(self.turret_mount_image, self.turret_mount_rect)
-        mousex = pygame.mouse.get_pos()[0]
-        mousey = pygame.mouse.get_pos()[1]
+        mousex = scale(pygame.mouse.get_pos()[0])
+        mousey = scale(pygame.mouse.get_pos()[1])
         if self.baserect.collidepoint(mousex, mousey):
             self.draw_range(disp)
 
@@ -621,7 +714,7 @@ class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no
         self.rangerect = self.rangeimage.get_rect(center=self.position)
         pygame.draw.circle(self.rangeimage, (255,255,255,40), (self.range,self.range), self.range)
         #spinny bit setup
-        self.spinnybit = pygame.image.load("E:\Python code on VSC\Tower Defence\SpinnyBit.png")
+        self.spinnybit = pygame.image.load(FilePath + "SpinnyBit.png")
         self.spinnybit = pygame.transform.scale(self.spinnybit,(60,60))
         self.spinnybit_rect = self.spinnybit.get_rect(center=location)
         self.rotated_spinnybit = self.spinnybit
@@ -631,8 +724,8 @@ class Slammer(pygame.sprite.Sprite): # High damage 360 degree hit area tower. no
         disp.blit(self.image, (self.baserect[0]+3,self.baserect[1]+3))
         disp.blit(self.rotated_spinnybit, self.spinnybit_rect)
 
-        mousex = pygame.mouse.get_pos()[0]
-        mousey = pygame.mouse.get_pos()[1]
+        mousex = scale(pygame.mouse.get_pos()[0])
+        mousey = scale(pygame.mouse.get_pos()[1])
         if self.baserect.collidepoint(mousex, mousey):
             self.draw_range(disp)
 
@@ -753,6 +846,20 @@ class Amplifier(pygame.sprite.Sprite):  # a 1x1 block that increases the stats o
     def draw(self, disp):
         disp.blit(self.image, self.baserect)
 
+class upgradesparks(pygame.sprite.Sprite):    # a visual indicator of when a tower is upgraded (a few green dots that fade away)
+    def __init__(self, location):
+        super().__init__()
+        self.clock = 0.8    # expires after 0.8 seconds
+        self.colour = (0,255,0)
+        self.image = pygame.Surface((5, 5), pygame.SRCALPHA)
+        self.image.fill((0,0,0,0))
+        pygame.draw.circle(self.image, (self.colour), (2.5,2.5), 2.5)
+        self.rect = self.image.get_rect(center = location)
+
+    def draw(self, disp):
+        self.liveimage = pygame.transform.scale(self.image,(self.clock*(5/0.8)))
+        disp.blit(self.image, self.rect)
+
 class Mouse(pygame.sprite.Sprite):  # used to detect if tower placement is valid
     def __init__(self):
         super().__init__()
@@ -764,6 +871,15 @@ class Mouse(pygame.sprite.Sprite):  # used to detect if tower placement is valid
         self.rect.center=pos
         disp.blit(self.image, self.rect)
 
+class mousetrackerthingie(pygame.sprite.Sprite): # Used for debugging across different resolution scalings.
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface((5,5))
+        self.image.fill((255,255,255))
+
+    def update(self, location):
+        disp.blit(self.image, location)
+
 towers=pygame.sprite.Group()
 enemies=pygame.sprite.Group()
 clock=time.time()
@@ -771,6 +887,7 @@ mouse_track=Mouse()
 timer=0
 towers_rects=[]
 curtime = time.time()
+#thingiemajig = mousetrackerthingie()  # Cursor Debugging
 
 state = 0    # (0-Menu, 1-Game, 2-Paused, 3-Upgrades)
 
@@ -778,9 +895,11 @@ state = 0    # (0-Menu, 1-Game, 2-Paused, 3-Upgrades)
 while True:
     curtime=time.time()
     pressed_keys=pygame.key.get_pressed()
-    mouse=pygame.mouse.get_pos()
+    mouse = (int(scale(pygame.mouse.get_pos()[0])), int(scale(pygame.mouse.get_pos()[1])))
+    #print(f"{pygame.mouse.get_pos()} before scaling, {mouse} after scaling")
     if state == 0: # Main Menu
         disp.blit(TitleScreen, (0,0))
+        disp.blit(PlayButtonText, (1165, 860))
         if PlayButton.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
             state = 1
         elif UpgradesButton.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
@@ -866,7 +985,7 @@ while True:
                 tower.aim(tower.target)
                 tower.shoot()
             tower.draw(disp)
-        if lives==0:
+        if lives == 0:
             print("you loose")
             pygame.quit()
             sys.exit()
@@ -878,14 +997,18 @@ while True:
         state = PauseButton(state)
     elif state == 2:
         state = PauseButton(state)
-        pass # PAUSE    -not yet implimented
+        pass # PAUSE    -not yet (fully) implimented
     elif state == 3:
         disp.fill((0,0,0)) # UPGRADES    -not yet implimented
+        text = font.render("Page not yet implimented, click to go back", True, (255,255,255))
+        disp.blit(text, (20, scr_hi//2))
         if pygame.mouse.get_pressed()[0]:
             state = 0
     for event in pygame.event.get(): #standard quit check loop...
             if event.type==QUIT:
                 pygame.quit()
                 sys.exit()
+    #thingiemajig.update(mouse) # Cursor Debugging
+    pygame.transform.scale(disp, (end_wi,end_hi),final_window)
     pygame.display.flip()
     FrPS.tick(FPS)
